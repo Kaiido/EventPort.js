@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title></title>    
+    <style>
+      canvas { border: 1px solid; }
+    </style>
+  </head>
+  <body>
+  <script src="../EventPort.js"></script>
+  <canvas id="canvas" width="200" height="200" id="canvas"></canvas>
+  <script>
+  const canvas = document.getElementById( 'canvas' );
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'red';
+  let parentWidth = 0;
+  let parentHeight = 0;
+  
+  onmessage = ( { data, eventPorts } ) => {
+
+    const parentDoc = eventPorts[ 0 ];
+    parentDoc.addEventListener( 'mousemove', handleParentFrameMouseMove );
+    const parentWin = eventPorts[ 1 ];
+    parentWin.addEventListener( 'custom-resize', handleParentFrameResize );
+    parentWidth = data.width;
+    parentHeight = data.height;
+  
+  };
+  function handleParentFrameMouseMove( evt ) {
+
+    const transformedX = evt.clientX * (canvas.width / parentWidth);
+    const transformedY = evt.clientY * (canvas.height / parentHeight);
+    ctx.clearRect( 0, 0, canvas.width, canvas.height );
+    ctx.beginPath();
+    ctx.arc( transformedX, transformedY, 15, 0, Math.PI * 2 );
+    ctx.fill();
+
+  }
+  function handleParentFrameResize( evt ) {
+
+    parentWidth = evt.innerWidth;
+    parentHeight = evt.innerHeight;
+      
+  }
+  </script>
+  </body>
+</html>

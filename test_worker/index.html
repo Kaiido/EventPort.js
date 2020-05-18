@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title></title>    
+    <style>
+      canvas {border: 1px solid;}
+    </style>
+  </head>
+  <body>
+  
+  <script src="../EventPort.js"></script>
+  <canvas id="canvas" width="500" height="500" id="canvas"></canvas>
+  <pre id="_log"></pre><script>function log() {
+  var args = Array.prototype.slice.call(arguments);
+  _log.textContent = args.map( function(v) { return JSON.stringify(v) } ).join(' - ') + '\n' + _log.textContent;
+  }</script>
+  <script>
+
+  const worker = new Worker( 'worker.js' );
+  const canvas = document.getElementById( 'canvas' );
+  
+  const eventPort = canvas.createEventPort();
+  try {
+    const off_canvas = canvas.transferControlToOffscreen();
+    worker.postMessage( { canvas: off_canvas, eventPort }, [ off_canvas, eventPort ] );    
+  }
+  catch (e) {
+    worker.postMessage( { eventPort }, [ eventPort ] );
+  }
+  worker.onmessage = (evt) => { log( "from worker", evt.data ); }
+
+  log( "click on the canvas to remove the mousemove listener" );
+  </script>
+  </body>
+</html>

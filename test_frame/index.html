@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title></title>    
+    <style>
+      iframe { width: 300px; height: 300px; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+  <script src="../EventPort.js"></script>
+  <iframe src="frame.html" id="frame"></iframe>
+  <button id="btn">open popup</button>
+  <script>
+  const frame = document.getElementById( "frame" );
+  const btn = document.getElementById( "btn" );
+
+  onload = (evt) => {
+  
+    initContext( frame.contentWindow );
+    
+  };
+  btn.onclick = (evt) => {
+
+    const popup = open( "frame.html", "", "width=300,height=300,left=3000" );
+    popup.onload = (evt) => initContext( popup );
+  
+  };
+
+  function initContext( context ) {
+  
+    const winPort = window.createEventPort();
+    const docPort = document.createEventPort();
+
+    const data = {
+      width: innerWidth,
+      height: innerHeight
+    };
+    context.postMessage( data, "*", [ winPort, docPort ] );
+
+  };
+  
+  // a simple Proxy event to get the innerWidth and innerHeight attached to it
+  window.onresize = (evt) => {
+    dispatchEvent(
+      Object.assign( new Event( "custom-resize" ), {
+        innerWidth: this.innerWidth,
+        innerHeight: this.innerHeight
+      } )
+    );
+  }
+
+  </script>  
+  </body>
+</html>
