@@ -243,6 +243,7 @@ const window_proxies = new WeakMap();
       Object.defineProperty( proto, prop, {
         get: function() {
           crossorigin = false;
+
           const win = originalDesc.get.call( this );
           overridePostMessage( win );
           overrideOpenWindow( win );
