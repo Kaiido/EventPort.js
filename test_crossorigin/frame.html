@@ -11,18 +11,17 @@
   <script src="../EventPort.js"></script>
   <canvas id="canvas" width="200" height="200" id="canvas"></canvas>
   <script>
+  
+  onload = (evt) => {
+    (opener || parent).postMessage( 'loaded', "*" );
+  };
+  
   const canvas = document.getElementById( 'canvas' );
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = 'red';
   let parentWidth = 0;
   let parentHeight = 0;
-
-// {  
-//   const port = window.createEventPort();
-//   console.log( parent.postMessage, port );
-//   parent.postMessage( '', '*', [ port ] );
-//   setTimeout(() => dispatchEvent(new Event( 'foobar' ) ), 300)
-// } 
+  
   onmessage = ( { data, eventPorts } ) => {
 
     const parentDoc = eventPorts[ 0 ];

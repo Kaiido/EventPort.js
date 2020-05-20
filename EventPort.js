@@ -10,6 +10,9 @@
 
 (()=> { "use strict";
 
+let crossorigin = false;
+const window_proxies = new WeakMap();
+
   // Only passive handlers are attached to the original targets
   const default_event_options_dict = {
     capture: false,
@@ -227,7 +230,7 @@
         console.warn( err );
       }      
     }
-    
+
   } );
 
   overrideSpecialWindows( MessageEvent.prototype, 'source' );
@@ -236,21 +239,25 @@
 
     const originalDesc = Object.getOwnPropertyDescriptor( proto, prop );
     
-    if( originalDesc.get || originalDesc.value ) {
+    if( originalDesc.get ) {
       Object.defineProperty( proto, prop, {
         get: function() {
-
-          const win = originalDesc.get ? originalDesc.get.call( this ) : originalDesc.value;
+          crossorigin = false;
+          const win = originalDesc.get.call( this );
           overridePostMessage( win );
           overrideOpenWindow( win );
-
+        
+          if( crossorigin ) {
+            return proxifyWindow( win );
+          }
+        
           return win;
-
         },
         set: originalDesc.set || noop
       } );
+
     }
-    
+
   }
 
   function overrideOpenWindow( win ) {
@@ -259,18 +266,22 @@
 
       const original = win.open;
       win.open = (...args) => {
-
+        
+        crossorigin = false;
         const popup = original.apply( this, args );
         if( popup ) {
           overridePostMessage( popup );
           overrideOpenWindow( win );
+        }
+        if( crossorigin ) {
+          return proxifyWindow( popup );
         }
         return popup;
 
       };
     }
     catch( err ) {
-      // crossorigin...
+      crossorigin = true;
     }  
 
   
@@ -301,6 +312,28 @@
     return SpoofedClass;
     
   }
+
+  // to handle cross-origin contexts  
+  function proxifyWindow( win ) {
+    
+    if( window_proxies.has( win ) ) {
+      return window_proxies.get( win );
+    }
+    const proxy = new Proxy( win, { get(obj, prop) {
+      if( prop === "postMessage" ) {
+        return (...args) => {
+          const { data, transferables } = searchAndReplacePassiveMirrors( args[ 0 ], args[ 2 ] );
+          return win.postMessage( data, args[ 1 ], transferables);
+        };
+      }
+      return win[ prop ];
+    } } );
+    window_proxies.set( win, proxy );
+
+    return proxy;
+
+  }
+  
   // used in the Receiver side, to revive potential PassiveMirrors
   function retrievePassiveMirrors( evt ) {
 
@@ -381,7 +414,7 @@
       } );
     }    
     catch( err ) {
-      // crossorigin...
+      crossorigin = true;
     }
 
     function overridenWindowPostMessage( ...args ) {
@@ -463,7 +496,7 @@
     }
 
   }
-  
+
   function tryToGetMirror( port ) {
   
     if( port instanceof EventPort && storage.has( port ) ) {
