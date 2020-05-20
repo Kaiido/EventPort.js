@@ -236,11 +236,11 @@
 
     const originalDesc = Object.getOwnPropertyDescriptor( proto, prop );
     
-    if( originalDesc.get || originalDesc.value ) {
+    if( originalDesc.get ) {
       Object.defineProperty( proto, prop, {
         get: function() {
 
-          const win = originalDesc.get ? originalDesc.get.call( this ) : originalDesc.value;
+          const win = originalDesc.get.call( this );
           overridePostMessage( win );
           overrideOpenWindow( win );
 
