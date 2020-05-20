@@ -216,25 +216,47 @@
   if( globalThis.open ) {
     overrideOpenWindow( globalThis );
   }
+  // 'Window.top' is non-configurable...
+  [ 'parent', 'opener' ].forEach( (prop) => {
+
+    if( prop in globalThis ) {
+      try {
+        overrideSpecialWindows( globalThis, prop );
+      }
+      catch( err ) {
+        console.warn( err );
+      }      
+    }
+    
+  } );
+
+  overrideSpecialWindows( MessageEvent.prototype, 'source' );
 
   function overrideSpecialWindows( proto, prop ) {
 
     const originalDesc = Object.getOwnPropertyDescriptor( proto, prop );
-    Object.defineProperty( proto, prop, {
-      get: function() {
-        const win = originalDesc.get.call( this );
-        overridePostMessage( win );
-        overrideOpenWindow( win );
-        return win;
-      },
-      set: originalDesc.set || noop
-    } );
+    
+    if( originalDesc.get || originalDesc.value ) {
+      Object.defineProperty( proto, prop, {
+        get: function() {
 
+          const win = originalDesc.get ? originalDesc.get.call( this ) : originalDesc.value;
+          overridePostMessage( win );
+          overrideOpenWindow( win );
+
+          return win;
+
+        },
+        set: originalDesc.set || noop
+      } );
+    }
+    
   }
 
   function overrideOpenWindow( win ) {
 
     try {
+
       const original = win.open;
       win.open = (...args) => {
 
@@ -374,74 +396,74 @@
       originalPostMessage.call( this, data, transferables );
 
     }
-    function searchAndReplacePassiveMirrors( data, transferables ) {
 
-      // No transferrables, there can't be any EventPort
-      if( !Array.isArray( transferables ) ) {
-        return { data, transferables };
-      }
+  }
+  function searchAndReplacePassiveMirrors( data, transferables ) {
 
-      let index = -1;
-      const indices = []; // used later on for revival
-      const referenced_objects = new Set(); // to handle cyclic references
-
-      transferables = transferables.map( ( value ) => {
-        const mirror = tryToGetMirror( value );
-        if( mirror ) {
-          index ++;
-          indices.push( index );
-          return mirror.outerPort;
-        }
-        if( value instanceof MessagePort ) {
-          index ++; // We'll search in MessageEvent.ports
-        }
-        return value;
-      } );
-    
-      if( indices.length ) {
-        searchAndReplaceMirrorsInData( "data", { data } );
-        data = { // wrap so we can recognize at the receiver end
-          [ _UGLY_MAGIC_KEYWORD_ ]: indices,
-          data: data
-        };
-      }
-      // TODO: Fix this nightmare...
-      // ProxyWindow will get our wrapper twice:
-      // once in top, and once in their own context
-      // They won't be able to share the storage, thus each side needs to do its own job
-      // But if one side finds our ugly magic keyword, it will try to unwrap it from its
-      // own storage, resulting in no revival, and the disparition of the indices marker
-      // for the second pass.
-      // The only workaround I can think of right now is to double wrap in case we didn't
-      // find any mirror but found a previous wrapper
-      else if( data[ _UGLY_MAGIC_KEYWORD_ ] ) {
-        data = { // double wrap
-          [  _UGLY_MAGIC_KEYWORD_ ]: indices,
-          data: data
-        };      
-      }
+    // No transferrables, there can't be any EventPort
+    if( !Array.isArray( transferables ) ) {
       return { data, transferables };
-      
-      function searchAndReplaceMirrorsInData( key, source ) {
+    }
 
-        const value = source[ key ];
-        const mirror = tryToGetMirror( value );
-        if( mirror) {
-          source[ key ] = mirror.outerPort;
-        }
-        else if( value && typeof value === "object" && !referenced_objects.has( value ) ) {
-          referenced_objects.add( value );
-          Object.keys( value ).forEach( key =>
-            searchAndReplaceMirrorsInData( key, value )
-          );
-        }
+    let index = -1;
+    const indices = []; // used later on for revival
+    const referenced_objects = new Set(); // to handle cyclic references
 
+    transferables = transferables.map( ( value ) => {
+      const mirror = tryToGetMirror( value );
+      if( mirror ) {
+        index ++;
+        indices.push( index );
+        return mirror.outerPort;
+      }
+      if( value instanceof MessagePort ) {
+        index ++; // We'll search in MessageEvent.ports
+      }
+      return value;
+    } );
+  
+    if( indices.length ) {
+      searchAndReplaceMirrorsInData( "data", { data } );
+      data = { // wrap so we can recognize at the receiver end
+        [ _UGLY_MAGIC_KEYWORD_ ]: indices,
+        data: data
+      };
+    }
+    // TODO: Fix this nightmare...
+    // ProxyWindow will get our wrapper twice:
+    // once in top, and once in their own context
+    // They won't be able to share the storage, thus each side needs to do its own job
+    // But if one side finds our ugly magic keyword, it will try to unwrap it from its
+    // own storage, resulting in no revival, and the disparition of the indices marker
+    // for the second pass.
+    // The only workaround I can think of right now is to double wrap in case we didn't
+    // find any mirror but found a previous wrapper
+    else if( data[ _UGLY_MAGIC_KEYWORD_ ] ) {
+      data = { // double wrap
+        [  _UGLY_MAGIC_KEYWORD_ ]: indices,
+        data: data
+      };      
+    }
+    return { data, transferables };
+    
+    function searchAndReplaceMirrorsInData( key, source ) {
+
+      const value = source[ key ];
+      const mirror = tryToGetMirror( value );
+      if( mirror) {
+        source[ key ] = mirror.outerPort;
+      }
+      else if( value && typeof value === "object" && !referenced_objects.has( value ) ) {
+        referenced_objects.add( value );
+        Object.keys( value ).forEach( key =>
+          searchAndReplaceMirrorsInData( key, value )
+        );
       }
 
     }
 
   }
-
+  
   function tryToGetMirror( port ) {
   
     if( port instanceof EventPort && storage.has( port ) ) {
