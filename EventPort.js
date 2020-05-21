@@ -250,9 +250,12 @@
         get: function() {
 
           const win = originalDesc.get.call( this );
-          overridePostMessage( win );
-          overrideOpenWindow( win );
 
+          if( win ) {
+            overridePostMessage( win );
+            overrideOpenWindow( win );
+          }
+          
           return win;
 
         },
