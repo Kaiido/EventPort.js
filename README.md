@@ -45,14 +45,18 @@ This listener will receive an *OpaqueEvent*, made from the original Event, on wh
 The only *option* that can be passed to the `addEventListener()` and `removeEventListener()` methods is `once`, auto-removing the event once it fired.  
 The *EventPort* will only generate passive bubbling listeners.
 
+### What *contexts* are supported? ###
+
+This script currently supports normal document's Window, same-origin iframe's Window, same-origin `open`ed Window, Worker's global Scope and inner Workers, AudioWorklets.  
+
+**Note that we currently don't support cross-origin contexts.** There is a [branch][7] dedicated to this work, but the current implementation is too unstable. Use it only where and if, you really need it.  
+
 ## Can I use this script on my website? ##
 
 **Not before you do a lot of tests.**  
 This project is really just a playground to better see how a future API could be shaped, it's not meant to be used in production, and hasn't been tested, at all.  
 
 If you find bugs, or have any idea on how to improve this script feel free to open an issue or even PRs.  
-
-**Note that we currently don't support cross-origin contexts.** We may work on it in the future though.
 
 ## Browser support ##
 
@@ -64,3 +68,4 @@ Experimented only on latest Firefox, Chrome and Safari, no deep tests have been 
 [4]: https://developer.mozilla.org/en-US/docs/Web/API/Worker/postMessage
 [5]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [6]: https://github.com/WICG/input-for-workers#stripping-dom-references-from-events
+[7]: https://github.com/Kaiido/EventPort.js/tree/cross-origin

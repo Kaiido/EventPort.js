@@ -49,10 +49,8 @@ const window_proxies = new WeakMap();
   // So we wrap the full '.data' content around an object using the following constant...
   const _UGLY_MAGIC_KEYWORD_ = "__event_ports_map__";
 
-
   // Each context holds its own storage
   const storage = new WeakMap();
-  storage.name = location.href;
     
   // This interface is used by the events fired on receiver side of the mirror
   class OpaqueEvent {
@@ -199,9 +197,15 @@ const window_proxies = new WeakMap();
     URL.revokeObjectURL( url );
   }
 
-  MessageChannel = spoofMessageChannelConstructor();
-  overridePostMessage( MessagePort.prototype );
-
+  if( typeof MessageChannel === "function" ) {
+    MessageChannel = spoofMessageChannelConstructor();
+  }
+  if( typeof AudioWorkletProcessor === "function" ) {
+    AudioWorkletProcessor = spoofAudioWorkletProcessorConstructor();
+  }
+  if( typeof MessagePort === "function" ) {
+    overridePostMessage( MessagePort.prototype );
+  }
   if( globalThis.postMessage ) {
     overridePostMessage( globalThis );
     globalThis.addEventListener( "message", retrievePassiveMirrors );
@@ -232,8 +236,13 @@ const window_proxies = new WeakMap();
     }
 
   } );
-
-  overrideSpecialWindows( MessageEvent.prototype, 'source' );
+  
+  if( typeof MessageEvent === "function" ) {
+    overrideSpecialWindows( MessageEvent.prototype, 'source' );
+  }
+  // else {
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1639793
+  //}  
 
   function overrideSpecialWindows( proto, prop ) {
 
@@ -245,13 +254,14 @@ const window_proxies = new WeakMap();
           crossorigin = false;
 
           const win = originalDesc.get.call( this );
-          overridePostMessage( win );
-          overrideOpenWindow( win );
+          if( win ) {
+            overridePostMessage( win );
+            overrideOpenWindow( win );
         
-          if( crossorigin ) {
-            return proxifyWindow( win );
+            if( crossorigin ) {
+              return proxifyWindow( win );
+            }
           }
-        
           return win;
         },
         set: originalDesc.set || noop
@@ -307,6 +317,18 @@ const window_proxies = new WeakMap();
         super( ...args );
         this.port1.addEventListener( "message", retrievePassiveMirrors );
         this.port2.addEventListener( "message", retrievePassiveMirrors );
+      }
+    }
+
+    return SpoofedClass;
+    
+  }
+  function spoofAudioWorkletProcessorConstructor( ) {
+
+    class SpoofedClass extends AudioWorkletProcessor {
+      constructor( ...args ) {
+        super( ...args );
+        this.port.addEventListener( "message", retrievePassiveMirrors );
       }
     }
 
