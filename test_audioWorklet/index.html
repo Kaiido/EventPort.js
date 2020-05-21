@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title></title>    
+  </head>
+  <body>
+  
+  <script src="../EventPort.js"></script>
+  <h2>Audio Worklet testing page</h2>
+  <p>This page demonstrates the use of the <code>EventPort</code> interface to control an AudioWorkletProcessor.</p>
+  <p>Use your mouse to control the volume and stereo-panning of the white noise, directly in the Worklet's context.</p>  
+  <button id="button">begin noise</button>
+  <pre id="_log"></pre><script>function log() {
+  var args = Array.prototype.slice.call(arguments);
+  _log.textContent = args.map( function(v) { return JSON.stringify(v) } ).join(' - ') + '\n' + _log.textContent;
+  }</script>
+  <script>
+
+const button = document.getElementById( "button" );
+button.onclick = async (evt) => {
+  
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();  
+  
+  const gain_node = ctx.createGain();
+  gain_node.gain.value = 0.5;
+  
+  if( !ctx.audioWorklet ) {
+    log( "Your browser doesn't support AudioWorklets" );
+    this.remove();
+    return;
+  }
+  
+  // FF young implementation doesn't support `import` inside of Worklets
+  // so we use `addModule` as a workaround
+  await ctx.audioWorklet.addModule( "../EventPort.js" );
+  await ctx.audioWorklet.addModule( "worklet.js" );
+  const processor_node = new AudioWorkletNode( ctx, "test-processor", {
+    numberOfOutputs: 2
+  } );
+  
+  const merger = ctx.createChannelMerger( 2 );
+  processor_node.connect( merger, 0, 0 );
+  processor_node.connect( merger, 1, 1 );
+  
+  merger.connect( gain_node );
+  gain_node.connect( ctx.destination );
+  
+  const event_port = createEventPort();
+  processor_node.port.postMessage( { innerWidth, innerHeight }, [ event_port ] );
+  
+  // a simple Proxy event to get the innerWidth and innerHeight attached to it
+  window.onresize = (evt) => {
+    dispatchEvent(
+      Object.assign( new Event( "custom-resize" ), {
+        innerWidth: this.innerWidth,
+        innerHeight: this.innerHeight
+      } )
+    );
+  };
+
+  button.onclick = (evt) => {
+    if( ctx.state === "running" ) {
+      ctx.suspend();
+      button.textContent = "resume";
+    }
+    else {
+      ctx.resume();
+      button.textContent = "pause";
+    }
+  };
+  button.textContent = "pause";
+  
+};
+
+  </script>
+  </body>
+</html>

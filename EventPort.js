@@ -46,10 +46,8 @@
   // So we wrap the full '.data' content around an object using the following constant...
   const _UGLY_MAGIC_KEYWORD_ = "__event_ports_map__";
 
-
   // Each context holds its own storage
   const storage = new WeakMap();
-  storage.name = location.href;
     
   // This interface is used by the events fired on receiver side of the mirror
   class OpaqueEvent {
@@ -196,9 +194,15 @@
     URL.revokeObjectURL( url );
   }
 
-  MessageChannel = spoofMessageChannelConstructor();
-  overridePostMessage( MessagePort.prototype );
-
+  if( typeof MessageChannel === "function" ) {
+    MessageChannel = spoofMessageChannelConstructor();
+  }
+  if( typeof AudioWorkletProcessor === "function" ) {
+    AudioWorkletProcessor = spoofAudioWorkletProcessorConstructor();
+  }
+  if( typeof MessagePort === "function" ) {
+    overridePostMessage( MessagePort.prototype );
+  }
   if( globalThis.postMessage ) {
     overridePostMessage( globalThis );
     globalThis.addEventListener( "message", retrievePassiveMirrors );
@@ -229,8 +233,13 @@
     }
     
   } );
-
-  overrideSpecialWindows( MessageEvent.prototype, 'source' );
+  
+  if( typeof MessageEvent === "function" ) {
+    overrideSpecialWindows( MessageEvent.prototype, 'source' );
+  }
+  // else {
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=1639793
+  //}  
 
   function overrideSpecialWindows( proto, prop ) {
 
@@ -301,6 +310,19 @@
     return SpoofedClass;
     
   }
+  function spoofAudioWorkletProcessorConstructor( ) {
+
+    class SpoofedClass extends AudioWorkletProcessor {
+      constructor( ...args ) {
+        super( ...args );
+        this.port.addEventListener( "message", retrievePassiveMirrors );
+      }
+    }
+
+    return SpoofedClass;
+    
+  }
+  
   // used in the Receiver side, to revive potential PassiveMirrors
   function retrievePassiveMirrors( evt ) {
 
