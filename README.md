@@ -12,7 +12,7 @@ It's main use case is to allow scripts in Workers that normally don't have acces
 ## How to use ##
 
 Each javascript context on which you want to use the *EventPort* must include this script.  
-Once it's executed, you can simply create a new *EventPort* from any *EventTarget* by calling its `createEventPort()` mirror.
+Once it's executed, you can simply create a new *EventPort* from any *EventTarget* by calling its `createEventPort()` method.
 
     const eventTarget = document.getElementById( 'target' );
     const eventPort = eventTarget.createEventPort();
